@@ -4,16 +4,36 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+
+import java.util.concurrent.*;
 import java.util.logging.Logger;
 
 /**
+ * @author yision
  * @className: Server
  * @description: 服务器主线程
  * @date: 2022/4/18
  **/
 public class Server extends Thread{
-    private int port = 8000;
+    static int port = 8000;
+    ServerSocket serverSocket;
     Logger log = Logger.getLogger("SERVER_LOG_JT");
+    //使用线程池管理创建的线程
+    //手动创建线程池而不是调用Eexctuors的方法，防止OOM
+
+    static ExecutorService threadPool = new ThreadPoolExecutor(
+            //核心线程池大小
+            1,
+            //最大核心线程池大小
+            1,
+            //空闲线程存活时间
+            1L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<Runnable>(3),
+            //线程工厂
+            Executors.defaultThreadFactory(),
+            //拒绝策略
+            new ThreadPoolExecutor.DiscardOldestPolicy());
 
     public Server(){}
 
@@ -26,13 +46,32 @@ public class Server extends Thread{
      * @param port: The port server listened
      **/
     public Server(int port){
-        this.port = port;
+        Server.port = port;
+    }
+
+
+    @Override
+    public void run() {
+        try{
+            serverSocket = new ServerSocket(port);
+            Socket socket = null;
+            // Waiting for client
+            // serverSocket.accept()是一个阻塞方法，意味着该循环用于不会结束且只有有连接时会进入循环体
+            while ((socket = serverSocket.accept()) != null){
+                //Child Thread here
+                // if connected, let a httpServer thread to handle it.
+                log.info(socket.toString());
+                threadPool.execute(new HttpServer(socket));
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     /**
      * @description: 子线程，用于处理请求
      */
-    class HttpServer extends Thread{
+    class HttpServer implements Runnable{
         Socket currentSocket = null;
         InputStream inputStream = null;
         OutputStream outputStream = null;
@@ -61,11 +100,16 @@ public class Server extends Thread{
         public void run() {
             try{
                 String rawString = read();
-                String serverCommand = parse(rawString);
-                String resultString = process(serverCommand);
-                String rawResultString = response(resultString);
-                write(rawResultString);
+                //观察到有时浏览器传来空串，可能是客户端主动关闭socket
+                if(rawString != null){
+                    String serverCommand = parse(rawString);
+                    String resultString = process(serverCommand);
+                    String rawResultString = response(resultString);
+                    write(rawResultString);
+                }
+                log.info(currentSocket.toString() + "关闭");
                 currentSocket.close();
+
             }catch (Exception e){
                 log.info("Failed connection");
                 e.printStackTrace();
@@ -77,7 +121,6 @@ public class Server extends Thread{
             try{
                 //处理了第一行， 包括请求方法、请求URL、协议机版本。
                 String infoRead = bufferedReader.readLine();
-                log.info(infoRead);
                 return infoRead;
             }catch(Exception e){
                 log.info("Read failed");
@@ -93,10 +136,11 @@ public class Server extends Thread{
          */
         private String parse(String rawString){
             try{
+                log.info("解析请求： " + rawString);
                 String[] split = rawString.split(" ");
                 //请求方法、请求URL、协议机版本。
                 if(split.length != 3){
-                    return null;
+                    return "abort";
                 }
                 return split[1];
             }catch (Exception e){
@@ -115,7 +159,7 @@ public class Server extends Thread{
             FileReader fileReader = null;
             BufferedReader bufferedReader = null;
             try{
-                log.info(commandString);
+                log.info("请求资源： " + commandString);
                 if("/".equals(commandString)){
                     commandString = "SimpleHttpServer/src/main/resources/index.html";
                     resultStatus = SUCESS;
@@ -174,7 +218,9 @@ public class Server extends Thread{
                         break;
                     }
                 }
-                return responseInfo.toString();
+                String result = responseInfo.toString();
+                log.info("响应返回： " + result.substring(0, Math.min(25, result.length())) + "...");
+                return result;
             }catch (Exception e){
                 log.info("response Failed");
                 e.printStackTrace();
@@ -191,26 +237,6 @@ public class Server extends Thread{
                 log.info("write failed");
                 e.printStackTrace();
             }
-        }
-
-
-    }
-
-    @Override
-    public void run() {
-        super.run();
-        try{
-//            @SuppressWarnings("resource") // ingore warnings
-            ServerSocket serverSocket = new ServerSocket(this.port);
-            // Waiting for client
-            while (true){
-                Socket socket = serverSocket.accept();
-                //Child Thread here
-                // if connected, let a httpServer thread to handle it.
-                new HttpServer(socket).start();
-            }
-        }catch (Exception e){
-            e.printStackTrace();
         }
     }
 }

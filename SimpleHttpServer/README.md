@@ -12,7 +12,14 @@
 5. write: 写入socket数据流
 
 **一定要注意报文格式，头和体之间有一个"\r\n"**
+---
 HTTP 1.1 请求报文格式
 ![img.png](pic/img.png)
+---
 HTTP 1.1 响应报文格式
 ![img.png](pic/response.png)
+
+
+参考：
+- [Java 从零开始手撸一个 HTTP 服务器](https://blog.csdn.net/rizero/article/details/111410244)
+- Java 并发开发的艺术：一个基于线程池技术的简单服务器
