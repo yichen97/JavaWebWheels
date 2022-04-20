@@ -1,11 +1,9 @@
-package com.excample;
+package com.example;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
 /**
@@ -17,7 +15,7 @@ public class Server extends Thread{
     private int port = 8000;
     Logger log = Logger.getLogger("SERVER_LOG_JT");
 
-    public Server(){};
+    public Server(){}
 
     public static void main(String[] args) {
         Server sever = new Server();
@@ -25,14 +23,14 @@ public class Server extends Thread{
     }
 
     /**
-    * @param port: The port server listened
-    **/
+     * @param port: The port server listened
+     **/
     public Server(int port){
         this.port = port;
     }
 
     /**
-     * @deprecated 子线程，用于处理请求
+     * @description: 子线程，用于处理请求
      */
     class HttpServer extends Thread{
         Socket currentSocket = null;
@@ -77,7 +75,7 @@ public class Server extends Thread{
         private String read(){
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
             try{
-                // Read Interface
+                //处理了第一行， 包括请求方法、请求URL、协议机版本。
                 String infoRead = bufferedReader.readLine();
                 log.info(infoRead);
                 return infoRead;
@@ -95,8 +93,12 @@ public class Server extends Thread{
          */
         private String parse(String rawString){
             try{
-                //Parse Interface
-                return null;
+                String[] split = rawString.split(" ");
+                //请求方法、请求URL、协议机版本。
+                if(split.length != 3){
+                    return null;
+                }
+                return split[1];
             }catch (Exception e){
                 log.info("Parse failed");
                 e.printStackTrace();
@@ -106,19 +108,39 @@ public class Server extends Thread{
 
         /**
          * 处理客户端命令
-         * @param commandString
+         * @param commandString 客户端命令
          * @return response info
          */
         private String process(String commandString){
+            FileReader fileReader = null;
+            BufferedReader bufferedReader = null;
             try{
-                // process Interface
-                return null;
+                log.info(commandString);
+                if("/".equals(commandString)){
+                    commandString = "SimpleHttpServer/src/main/resources/index.html";
+                    resultStatus = SUCESS;
+                }else{
+                    commandString = "SimpleHttpServer/src/main/resources/404.html";
+                    resultStatus = NO_RESOURCE;
+                }
+                File file = new File(commandString);
+                fileReader = new FileReader(file);
+                bufferedReader = new BufferedReader(fileReader);
+                StringBuffer stringBuffer = new StringBuffer();
+                String line;
+                while((line = bufferedReader.readLine()) != null){
+                    stringBuffer.append(line + "\r\n");
+                }
+                responseLength = file.length();
+                String result = stringBuffer.toString();
+                return result;
             }catch (Exception e){
                 log.info("Process failed");
                 e.printStackTrace();
             }finally{
                 try{
-                    //close IO
+                    bufferedReader.close();
+                    fileReader.close();
                 }catch (Exception e){
                     log.info("Bad io");
                     e.printStackTrace();
@@ -129,8 +151,30 @@ public class Server extends Thread{
 
         private String response(String resultString){
             try{
-                //response Interface
-                return null;
+                StringBuffer responseInfo = new StringBuffer();
+                switch(resultStatus){
+                    case SUCESS:{
+                        responseInfo.append("HTTP/1.1 200 ok \r\n");
+                        responseInfo.append("Content-Type:text/html \r\n");
+                        responseInfo.append("Content-Length:" + Long.toString(responseLength)+ " \r\n");
+                        //隔开响应头和响应体
+                        responseInfo.append("\r\n");
+                        responseInfo.append(resultString);
+                        break;
+                    }
+                    case NO_RESOURCE:{
+                        responseInfo.append("HTTP/1.1 "+ Integer.toString(NO_RESOURCE) + " NOT FOUND \r\n");
+                        responseInfo.append("Content-Type:text/html \r\n");
+                        responseInfo.append("Content-Length:" + Long.toString(responseLength)+ "\r\n");
+                        //隔开响应头和响应体
+                        responseInfo.append("\r\n");
+                        responseInfo.append(resultString);
+                        break;
+                    } default:{
+                        break;
+                    }
+                }
+                return responseInfo.toString();
             }catch (Exception e){
                 log.info("response Failed");
                 e.printStackTrace();
@@ -140,8 +184,9 @@ public class Server extends Thread{
 
         private void write(String rawResultString){
             try{
-                //write Interface
-                return;
+                outputStream.write(rawResultString.getBytes(StandardCharsets.UTF_8));
+                outputStream.flush();
+                outputStream.close();
             }catch(Exception e){
                 log.info("write failed");
                 e.printStackTrace();
