@@ -12,12 +12,14 @@ import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.CharsetUtil;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Date;
 
 
 public class NioWebSocketServer {
-    private final Logger logger = Logger.getLogger(this.getClass());
+    private final Logger logger = LogManager.getLogger(this.getClass());
 
     private void init(){
         // 创建 BossGroup 和 WorkerGroup
@@ -80,7 +82,7 @@ public class NioWebSocketServer {
 
     static class NioWebSocketHandler extends SimpleChannelInboundHandler<Object>{
 
-        private final Logger logger=Logger.getLogger(this.getClass());
+        private final Logger logger = LogManager.getLogger(this.getClass());
         private WebSocketServerHandshaker handshaker;
 
         @Override
