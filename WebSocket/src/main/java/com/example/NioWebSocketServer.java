@@ -12,6 +12,7 @@ import io.netty.handler.codec.http.websocketx.*;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.CharsetUtil;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,6 +21,10 @@ import java.util.Date;
 
 public class NioWebSocketServer {
     private final Logger logger = LogManager.getLogger(this.getClass());
+
+    public static void main(String[] args) {
+        new NioWebSocketServer().init();
+    }
 
     private void init(){
         // 创建 BossGroup 和 WorkerGroup
@@ -53,7 +58,7 @@ public class NioWebSocketServer {
 
             logger.info("webSocket服务器启动成");
             // 绑定端口，启动服务器，生成一个 channelFuture 对象
-            ChannelFuture channelFuture = bootStrap.bind(8080).sync();
+            ChannelFuture channelFuture = bootStrap.bind(8081).sync();
             // 对通道关闭进行监听
             channelFuture.channel().closeFuture().sync();
 
@@ -73,6 +78,8 @@ public class NioWebSocketServer {
             ch.pipeline()
                     .addLast("logging", new LoggingHandler("DEBUG"))
                     .addLast("http-codec", new HttpServerCodec())
+                    //HttpObjectAggregator 是 Netty 提供的 HTTP 消息聚合器，通过它可以把 HttpMessage 和 HttpContent
+                    // 聚合成一个 FullHttpRequest 或者 FullHttpResponse(取决于是处理请求还是响应），方便我们使用。
                     .addLast("aggregator", new HttpObjectAggregator(65536))
                     // 用于大数据分区传输
                     .addLast("http-chunked", new ChunkedWriteHandler())
@@ -87,7 +94,7 @@ public class NioWebSocketServer {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
-            logger.debug("收到消息" + msg);
+            logger.info("收到消息" + msg);
             if(msg instanceof FullHttpMessage){
                 handleHttpRequest(ctx, (FullHttpRequest) msg);
             }else if(msg instanceof WebSocketFrame){
@@ -97,13 +104,13 @@ public class NioWebSocketServer {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            logger.debug("客户端加入连接： " + ctx.channel());
+            logger.info("客户端加入连接： " + ctx.channel());
             ChannelSupervise.addChannel(ctx.channel());
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            logger.debug("客户端口连接： " + ctx.channel());
+            logger.info("客户端口连接： " + ctx.channel());
             ChannelSupervise.removeChannel(ctx.channel());
         }
 
@@ -126,14 +133,14 @@ public class NioWebSocketServer {
             }
 
             if(!(frame instanceof TextWebSocketFrame)) {
-                logger.debug("本例程仅支持文本消息， 不支持二进制消息");
+                logger.info("本例仅支持文本消息， 不支持二进制消息");
                 throw new UnsupportedOperationException(String.format(
                         "%s frame types not supported", frame.getClass().getName()));
             }
             // 返回应答消息
 
             String request = ((TextWebSocketFrame) frame).text();
-            logger.debug("服务端收到：" + request);
+            logger.info("服务端收到：" + request);
             TextWebSocketFrame tws = new TextWebSocketFrame(new Date().toString()
                     + ctx.channel().id() + "：" + request);
             // 群发
