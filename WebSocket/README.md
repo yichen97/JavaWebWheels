@@ -1,10 +1,10 @@
 ## Java 网络编程
 本部分共四个Demo，逐渐递进：
 1. BlockingIO 基于同步阻塞IO的 Server
-2. NonBlockingIO 基于同步阻塞IO Server
-   前两个IO运行和，可以直接使用浏览器访问端口进行测试。
+2. NonBlockingIO 基于同步非阻塞IO Server
+   可以直接使用浏览器访问端口进行测试。
 3. sc1文件中 基于 Netty的TCP Server/Client
-    展示了使用 Netty 的基本使用
+    展示了 Netty 的基本使用
 4. NioWebSocketServer 使用 netty 实现了一个简单的仅支持文本消息的 WebSocket 服务器
 
 Netty: 对 java.nio 的封装，利用同步非阻塞的底层为用户提供两异步IO的效果。主要结构类似于“主从Reactor”
