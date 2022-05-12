@@ -24,6 +24,16 @@ HTTP 1.1 响应报文格式
 ![img.png](pic/response.png)
 
 
+### 改进
+1. 为get方法添加LRU缓存
+基于LinkedHashMap, 重写removeEldestEntry 即可，每次put 或 putAll 会调用该方法。
+> Returns true if this map should remove its eldest entry. 
+> This method is invoked by put and putAll after inserting a new entry into the map. 
+> It provides the implementor with the opportunity to remove the eldest entry each time a new one is added. 
+> This is useful if the map represents a cache: it allows the map to reduce memory consumption by deleting stale entries.
+
+
+
 参考：
 - [Java 从零开始手撸一个 HTTP 服务器](https://blog.csdn.net/rizero/article/details/111410244)
 - Java 并发开发的艺术：一个基于线程池技术的简单服务器

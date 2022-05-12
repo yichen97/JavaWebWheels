@@ -1,5 +1,8 @@
 package com.example;
 
+import com.example.Cache.Cache;
+import com.example.Cache.LRUCache;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -18,6 +21,7 @@ public class Server extends Thread{
     static int port = 8000;
     ServerSocket serverSocket;
     Logger log = Logger.getLogger("SERVER_LOG_JT");
+    String path = "SimpleHttpServer/src/main/resources/";
     //使用线程池管理创建的线程
     //手动创建线程池而不是调用Eexctuors的方法，防止OOM
 
@@ -160,23 +164,44 @@ public class Server extends Thread{
             BufferedReader bufferedReader = null;
             try{
                 log.info("请求资源： " + commandString);
-                if("/".equals(commandString)){
-                    commandString = "SimpleHttpServer/src/main/resources/index.html";
-                    resultStatus = SUCESS;
+                switch (commandString) {
+                    case "/": {
+                        commandString = "index.html";
+                        resultStatus = SUCESS;
+                        break;
+                    }
+                    case "/1": {
+                        commandString = "test1.html";
+                        resultStatus = SUCESS;
+                        break;
+                    }
+                    case "/2": {
+                        commandString = "test2.html";
+                        resultStatus = SUCESS;
+                        break;
+                    }
+                    default: {
+                        commandString = "404.html";
+                        resultStatus = NO_RESOURCE;
+                    }
+                }
+                String result = "";
+                Cache cache = new LRUCache(4);
+                if(cache.isExit(commandString)){
+                    result = cache.get(commandString);
                 }else{
-                    commandString = "SimpleHttpServer/src/main/resources/404.html";
-                    resultStatus = NO_RESOURCE;
+                    File file = new File(path + commandString);
+                    fileReader = new FileReader(file);
+                    bufferedReader = new BufferedReader(fileReader);
+                    StringBuffer stringBuffer = new StringBuffer();
+                    String line;
+                    while((line = bufferedReader.readLine()) != null){
+                        stringBuffer.append(line + "\r\n");
+                    }
+                    responseLength = file.length();
+                    result = stringBuffer.toString();
+                    cache.add(commandString, result);
                 }
-                File file = new File(commandString);
-                fileReader = new FileReader(file);
-                bufferedReader = new BufferedReader(fileReader);
-                StringBuffer stringBuffer = new StringBuffer();
-                String line;
-                while((line = bufferedReader.readLine()) != null){
-                    stringBuffer.append(line + "\r\n");
-                }
-                responseLength = file.length();
-                String result = stringBuffer.toString();
                 return result;
             }catch (Exception e){
                 log.info("Process failed");
