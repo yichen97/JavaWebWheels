@@ -16,10 +16,14 @@
 - 访问根目录会返回首页，访问其他均会返回404
 
 一定要注意报文格式，头和体之间有一个 "\r\n"
+
 ---
+
 HTTP 1.1 请求报文格式
 ![img.png](pic/img.png)
+
 ---
+
 HTTP 1.1 响应报文格式
 ![img.png](pic/response.png)
 
@@ -32,7 +36,35 @@ HTTP 1.1 响应报文格式
 > It provides the implementor with the opportunity to remove the eldest entry each time a new one is added. 
 > This is useful if the map represents a cache: it allows the map to reduce memory consumption by deleting stale entries.
 
+2. 为服务端添加限流功能
 
+2.1 使用Guava RateLimiter 控制连接产生的速度。
+```java
+    RateLimiter limiter = RateLimiter.create(1.0);
+    while ((socket = serverSocket.accept()) != null){
+        limiter.acquire();
+        threadPool.execute(new HttpServer(socket));
+    }
+```
+
+2.2 使用CountdownLatch 保证服务端同时发送多个连接。
+```java
+    //在所有线程准备好之前阻塞消息
+    countDownLatch.await();
+    output.flush();
+```
+
+```java
+    for(int i=0; i<10; i++){
+        ClientConn clientConn = new ClientConn();
+        clientConn.start();
+        //每准备好一个线程，计数减一
+        countDownLatch.countDown();
+    }
+```
+
+    如图可见，每秒仅会处理一次连接。
+![实验结果](pic/img_1.png)
 
 参考：
 - [Java 从零开始手撸一个 HTTP 服务器](https://blog.csdn.net/rizero/article/details/111410244)

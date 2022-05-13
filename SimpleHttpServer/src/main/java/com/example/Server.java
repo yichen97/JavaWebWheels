@@ -2,13 +2,17 @@ package com.example;
 
 import com.example.Cache.Cache;
 import com.example.Cache.LRUCache;
+import com.google.common.util.concurrent.RateLimiter;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -27,9 +31,9 @@ public class Server extends Thread{
 
     static ExecutorService threadPool = new ThreadPoolExecutor(
             //核心线程池大小
-            1,
+            3,
             //最大核心线程池大小
-            1,
+            3,
             //空闲线程存活时间
             1L,
             TimeUnit.SECONDS,
@@ -39,7 +43,11 @@ public class Server extends Thread{
             //拒绝策略
             new ThreadPoolExecutor.DiscardOldestPolicy());
 
-    public Server(){}
+    public Server(){
+        //为了方便观察限流结果，将日志等级调整到WARNING
+        //注释掉这行代码就能看到处理过程
+        log.setLevel(Level.WARNING);
+    }
 
     public static void main(String[] args) {
         Server sever = new Server();
@@ -61,10 +69,12 @@ public class Server extends Thread{
             Socket socket = null;
             // Waiting for client
             // serverSocket.accept()是一个阻塞方法，意味着该循环用于不会结束且只有有连接时会进入循环体
+            RateLimiter limiter = RateLimiter.create(1.0);
             while ((socket = serverSocket.accept()) != null){
                 //Child Thread here
                 // if connected, let a httpServer thread to handle it.
                 log.info(socket.toString());
+                limiter.acquire();
                 threadPool.execute(new HttpServer(socket));
             }
         }catch (Exception e){
@@ -103,6 +113,7 @@ public class Server extends Thread{
         @Override
         public void run() {
             try{
+                log.warning(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + "处理请求");
                 String rawString = read();
                 //观察到有时浏览器传来空串，可能是客户端主动关闭socket
                 if(rawString != null){
